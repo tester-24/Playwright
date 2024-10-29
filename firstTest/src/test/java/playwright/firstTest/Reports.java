@@ -1,5 +1,6 @@
 package playwright.firstTest;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,11 +24,19 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+
+import javax.activation.DataHandler;
 import javax.mail.*;
 import javax.mail.internet.*;
+import javax.mail.util.ByteArrayDataSource;
 
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Collectors;
 public class Reports {
 
 	
@@ -76,31 +85,24 @@ public class Reports {
             loginPage.enterUserId("m3903");
             test.log(Status.PASS, "User ID entered successfully.");
 
-            loginPage.enterPassword("Nirav@789");
+            loginPage.enterPassword("Nirav@780");
             test.log(Status.PASS, "Password entered successfully.");
 
             loginPage.login();
             test.log(Status.PASS, "Login button clicked.");
 
-            page.waitForTimeout(2000);
-            
+            page.waitForTimeout(2100);
             if (page.isVisible("#toast-container.toast-top-right.toast-container")) {
-                // Capture the screenshot when notification is displayed
-                String screenshotPath = captureScreenshot();
-                test.addScreenCaptureFromPath("screenshots/" + screenshotPath);
-                throw new Exception("Login failed, notification displayed."); // Force failure
-
+                captureAndLogScreenshot();
+                throw new Exception("Login failed, notification displayed.");
             }
-            
+
             loginPage.fillVerificationCode(new String[]{"1", "2", "3", "4"});
-            test.log(Status.PASS, "Verification code filled successfully.");            
-            
-            
-        }catch (Exception e) {
+            test.log(Status.PASS, "Verification code filled successfully.");
+
+        } catch (Exception e) {
             test.log(Status.FAIL, "Test failed: " + e.getMessage());
-            String screenshotPath = captureScreenshot();
-            test.addScreenCaptureFromPath("screenshots/" + screenshotPath);
-            throw e;
+            captureAndLogScreenshot();
         }
 	}
 	
@@ -115,10 +117,8 @@ public class Reports {
             test.log(Status.PASS, "Navigated to the IPO Dashboard successfully.");
         } catch (Exception e) {
             test.log(Status.FAIL, "Failed to navigate to IPO Dashboard: " + e.getMessage());
-            String screenshotPath = captureScreenshot();
-            test.addScreenCaptureFromPath("screenshots/" + screenshotPath);
-            throw e;
-            }
+            captureAndLogScreenshot();
+        }
     }
 
     @Test(dependsOnMethods = {"navigateToDashboard"})
@@ -128,21 +128,21 @@ public class Reports {
         IPOPage ipoPage = new IPOPage(page);
         
         try {
-            ipoPage.placeBid("Target Company Name"); 
+            ipoPage.placeBid("Target Company Name");
             test.log(Status.PASS, "Bid placed successfully.");
         } catch (Exception e) {
             test.log(Status.FAIL, "Failed to place bid: " + e.getMessage());
-            String screenshotPath = captureScreenshot();
-            test.addScreenCaptureFromPath("screenshots/" + screenshotPath);
+            captureAndLogScreenshot();
         }
     }
     
-    public String captureScreenshot() {
-    	 String fileName = "screenshot_" + System.currentTimeMillis() + ".png";
-    	    String filePath = "./reports/screenshots/" + fileName; 
-    	    page.screenshot(new Page.ScreenshotOptions().setPath(Paths.get(filePath)));
-    	    return fileName;
+    private void captureAndLogScreenshot() {
+        String fileName = "screenshot_" + System.currentTimeMillis() + ".png";
+        String filePath = "./reports/screenshots/" + fileName;
+        page.screenshot(new Page.ScreenshotOptions().setPath(Paths.get(filePath)));
+        test.addScreenCaptureFromPath("screenshots/" + fileName);
     }
+    
     
 	@AfterMethod																																																																																																						
 	public void updateResults(ITestResult result) {
@@ -152,46 +152,32 @@ public class Reports {
 	}
 	
 	@AfterTest
-	public void endReport() throws IOException {
-		
-		if (page != null) {
-            page.close(); 
-        }
-        if (context != null) {
-            context.close(); 
-        }
-        if (browser != null) {
-            browser.close(); 
-        }
-        if (playwright != null) {
-            playwright.close(); 
-        }
-        extent.flush(); 
-    
+	public void tearDown() throws IOException {
+        if (page != null) page.close();
+        if (context != null) context.close();
+        if (browser != null) browser.close();
+        if (playwright != null) playwright.close();
+        extent.flush();
         sendEmailReport();
-	}
-	
-	private void sendEmailReport() throws IOException {
-        // Email configurations
-		String[] recipients = {
-		        "sagar@elitetechnocrats.com",
-		        "tester3.elitetechno@gmail.com"
-		    };
-        String from = "tester4.elitetechno@gmail.com";
-        String host = "smtp.gmail.com"; 
-        String username = "tester4.elitetechno@gmail.com"; 
-        String password = "cmezcxcglnjpetlo"; 
+    }
 
-        // Set properties
+	private void sendEmailReport() throws IOException {
+        String[] recipients = {
+            "ashish.test.p@gmail.com",
+            "tester3.elitetechno@gmail.com"
+        };
+        String from = "tester4.elitetechno@gmail.com";
+        String host = "smtp.gmail.com";
+        String username = "tester4.elitetechno@gmail.com";
+        String password = "cmezcxcglnjpetlo";
+
         Properties properties = System.getProperties();
         properties.setProperty("mail.smtp.host", host);
         properties.put("mail.smtp.auth", "true");
-        properties.put("mail.smtp.port", "465"); // Use 465 for SSL
-        properties.put("mail.smtp.socketFactory.port", "465"); // Port for SSL
-        properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory"); // Use SSL socket factory
-        properties.put("mail.smtp.socketFactory.fallback", "false");
+        properties.put("mail.smtp.port", "465");
+        properties.put("mail.smtp.socketFactory.port", "465");
+        properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
 
-        // Create a session
         Session session = Session.getInstance(properties, new javax.mail.Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(username, password);
@@ -199,61 +185,64 @@ public class Reports {
         });
 
         try {
-            // Create a default MimeMessage object
             MimeMessage message = new MimeMessage(session);
-
-            // Set From: header field
             message.setFrom(new InternetAddress(from));
-
-            InternetAddress[] recipientAddresses = new InternetAddress[recipients.length];
-            for (int i = 0; i < recipients.length; i++) {
-                recipientAddresses[i] = new InternetAddress(recipients[i]);
-            }
-            
-            message.addRecipients(Message.RecipientType.TO, recipientAddresses);
-
-            // Set Subject: header field
+            message.addRecipients(Message.RecipientType.TO, InternetAddress.parse(String.join(",", recipients)));
             message.setSubject("Test Report");
 
-            MimeMultipart multipart = new MimeMultipart();
+            MimeMultipart multipart = new MimeMultipart("related");
 
-            // Set message body
+            // Email body part
             MimeBodyPart messageBodyPart = new MimeBodyPart();
-            String reportPath = "./reports/extent.html"; // Path to your report
-            String content = "Please find the attached test report.<br/><a href=\"file://" + reportPath + "\">View Report</a>";
-            
-            String base64Image = encodeImageToBase64("./reports/screenshots/screenshot.png");
-            if (!base64Image.isEmpty()) {
-                content += "<br/><img src='data:image/png;base64," + base64Image + "' alt='Screenshot'>";
+            String reportPath = "./reports/extent.html";
+
+            // Build the HTML content
+            StringBuilder content = new StringBuilder();
+            content.append("<h3>Please find the attached test report.</h3>")
+                   .append("<a href=\"file://").append(reportPath).append("\">View Report</a><br/>");
+
+            // Get the most recent screenshot path
+            String recentScreenshotPath = getMostRecentScreenshotPath();
+            if (recentScreenshotPath != null) {
+                ByteArrayDataSource dataSource = new ByteArrayDataSource(Files.readAllBytes(Paths.get(recentScreenshotPath)), "image/png");
+                MimeBodyPart imagePart = new MimeBodyPart();
+                imagePart.setDataHandler(new DataHandler(dataSource));
+                imagePart.setDisposition(MimeBodyPart.INLINE);
+                imagePart.setHeader("Content-ID", "<screenshot>");
+
+                content.append("<img src='cid:screenshot' style='max-width:100%; height:auto;'>");
+                messageBodyPart.setContent(content.toString(), "text/html");
+                multipart.addBodyPart(messageBodyPart);
+                multipart.addBodyPart(imagePart);
+            } else {
+                content.append("No screenshot available.");
+                messageBodyPart.setContent(content.toString(), "text/html");
+                multipart.addBodyPart(messageBodyPart);
             }
-            
-            messageBodyPart.setContent(content, "text/html");
-            multipart.addBodyPart(messageBodyPart);
-            
+
             MimeBodyPart attachmentBodyPart = new MimeBodyPart();
-            attachmentBodyPart.attachFile(reportPath); // Attach the report file
+            attachmentBodyPart.attachFile(reportPath);
             multipart.addBodyPart(attachmentBodyPart);
-            
+
             message.setContent(multipart);
-            
-            // Send message
             Transport.send(message);
             System.out.println("Sent message successfully....");
 
-        } catch (MessagingException mex) {
+        } catch (MessagingException | IOException mex) {
             mex.printStackTrace();
         }
-        
-	}
-	private String encodeImageToBase64(String imagePath) {
-	    try {
-	        Path path = Paths.get(imagePath);
-	        byte[] bytes = Files.readAllBytes(path);
-	        return Base64.getEncoder().encodeToString(bytes);
-	    } catch (IOException e) {
-	        e.printStackTrace();
-	        return "";
-	    }
-	    
-	}
+    }
+
+	private String getMostRecentScreenshotPath() {
+        String screenshotsDir = "./reports/screenshots";
+        File dir = new File(screenshotsDir);
+        if (dir.exists() && dir.isDirectory()) {
+            Optional<File> recentFile = Arrays.stream(dir.listFiles())
+                .filter(file -> file.isFile() && file.getName().endsWith(".png"))
+                .max(Comparator.comparingLong(File::lastModified));
+            return recentFile.map(File::getAbsolutePath).orElse(null);
+        }
+        return null;
+    }
+
 }
