@@ -48,10 +48,9 @@ public class Reports {
     private BrowserContext context;
     private Page page;
 	
-	@BeforeTest
-	public void setReport() throws IOException {
-		
-		htmlReporter = new ExtentSparkReporter("./reports/extent.html");
+    @BeforeTest
+    public void setReport() throws IOException {
+        htmlReporter = new ExtentSparkReporter("./reports/extent.html");
         htmlReporter.config().setEncoding("utf-8");
         htmlReporter.config().setDocumentTitle("Test Reports");
         htmlReporter.config().setReportName("Test ME");
@@ -65,16 +64,15 @@ public class Reports {
                 .setChannel("chrome"));
         context = browser.newContext();
         page = context.newPage();
-        
+
         if (!Files.exists(Paths.get("./reports/screenshots"))) {
             Files.createDirectories(Paths.get("./reports/screenshots"));
         }
-	}
-	
-	@Test
-	public void doLogin() throws Exception {
-		
-		test = extent.createTest("IPO Login Test");
+    }
+
+    @Test
+    public void doLogin() throws Exception {
+        test = extent.createTest("IPO Login Test");
 
         IPOLogin loginPage = new IPOLogin(page);
         
@@ -85,7 +83,7 @@ public class Reports {
             loginPage.enterUserId("m3903");
             test.log(Status.PASS, "User ID entered successfully.");
 
-            loginPage.enterPassword("Nirav@780");
+            loginPage.enterPassword("Nirav@789");
             test.log(Status.PASS, "Password entered successfully.");
 
             loginPage.login();
@@ -104,9 +102,9 @@ public class Reports {
             test.log(Status.FAIL, "Test failed: " + e.getMessage());
             captureAndLogScreenshot();
         }
-	}
-	
-	@Test(dependsOnMethods = {"doLogin"}) 
+    }
+
+    @Test(dependsOnMethods = {"doLogin"})
     public void navigateToDashboard() {
         test = extent.createTest("Navigate to IPO Dashboard");
 
@@ -135,24 +133,35 @@ public class Reports {
             captureAndLogScreenshot();
         }
     }
-    
+
     private void captureAndLogScreenshot() {
         String fileName = "screenshot_" + System.currentTimeMillis() + ".png";
         String filePath = "./reports/screenshots/" + fileName;
+
+        // Capture screenshot
         page.screenshot(new Page.ScreenshotOptions().setPath(Paths.get(filePath)));
-        test.addScreenCaptureFromPath("screenshots/" + fileName);
+
+        try {
+            // Read the screenshot as a byte array
+            byte[] fileContent = Files.readAllBytes(Paths.get(filePath));
+            // Convert to Base64
+            String base64String = Base64.getEncoder().encodeToString(fileContent);
+            // Add screenshot to the report
+            test.addScreenCaptureFromBase64String(base64String, fileName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
-    
-    
-	@AfterMethod																																																																																																						
-	public void updateResults(ITestResult result) {
-		if (result.getStatus() == ITestResult.FAILURE) {
+
+    @AfterMethod
+    public void updateResults(ITestResult result) {
+        if (result.getStatus() == ITestResult.FAILURE) {
             test.log(Status.FAIL, "Test Failed: " + result.getThrowable());
         }
-	}
-	
-	@AfterTest
-	public void tearDown() throws IOException {
+    }
+
+    @AfterTest
+    public void tearDown() throws IOException {
         if (page != null) page.close();
         if (context != null) context.close();
         if (browser != null) browser.close();
@@ -161,7 +170,7 @@ public class Reports {
         sendEmailReport();
     }
 
-	private void sendEmailReport() throws IOException {
+    private void sendEmailReport() throws IOException {
         String[] recipients = {
             "ashish.test.p@gmail.com",
             "tester3.elitetechno@gmail.com"
@@ -233,7 +242,7 @@ public class Reports {
         }
     }
 
-	private String getMostRecentScreenshotPath() {
+    private String getMostRecentScreenshotPath() {
         String screenshotsDir = "./reports/screenshots";
         File dir = new File(screenshotsDir);
         if (dir.exists() && dir.isDirectory()) {
@@ -244,5 +253,4 @@ public class Reports {
         }
         return null;
     }
-
 }
