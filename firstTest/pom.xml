@@ -83,7 +83,7 @@
             <version>3.3.0</version>
             <configuration>
                 <includes>
-                    <include>**/*Test.java</include> <!-- Ensure this matches your test naming convention -->
+                    <include>**/Reports.java</include> <!-- Ensure this matches your test naming convention -->
                 </includes>
             </configuration>
         </plugin>
