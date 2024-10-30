@@ -103,7 +103,7 @@ public class Reports {
             loginPage.enterUserId("m3903");
             test.log(Status.PASS, "User ID entered successfully.");
 
-            loginPage.enterPassword("Nirav@780");
+            loginPage.enterPassword("Nirav@789");
             test.log(Status.PASS, "Password entered successfully.");
 
             loginPage.login();
