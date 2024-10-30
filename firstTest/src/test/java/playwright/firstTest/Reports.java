@@ -24,6 +24,7 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.Tracing;
 
 import javax.activation.DataHandler;
 import javax.mail.*;
@@ -53,20 +54,39 @@ public class Reports {
         htmlReporter = new ExtentSparkReporter("./reports/extent.html");
         htmlReporter.config().setEncoding("utf-8");
         htmlReporter.config().setDocumentTitle("Test Reports");
-        htmlReporter.config().setReportName("Test ME");
+        htmlReporter.config().setReportName("IPO Automation Tests");
 
         extent = new ExtentReports();
         extent.attachReporter(htmlReporter);
         extent.setSystemInfo("Automation", "Elite");
+        
 
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(false)
                 .setChannel("chrome"));
-        context = browser.newContext();
+        
+        extent.setSystemInfo("Browser", "Chrome");
+        extent.setSystemInfo("Browser Version", browser.version());
+        extent.setSystemInfo("OS", System.getProperty("os.name"));
+        
+        context = browser.newContext(new Browser.NewContextOptions()
+        		.setRecordVideoDir(Paths.get("./reports/videos"))
+                        .setRecordVideoSize(1280, 720));
+        
         page = context.newPage();
+        page.setViewportSize(1920, 1080);
+        
+        context.tracing().start(new Tracing.StartOptions()
+                .setScreenshots(true)
+                .setSnapshots(true)
+                );
 
         if (!Files.exists(Paths.get("./reports/screenshots"))) {
             Files.createDirectories(Paths.get("./reports/screenshots"));
+        }
+        
+        if (!Files.exists(Paths.get("./reports/videos"))) {
+            Files.createDirectories(Paths.get("./reports/videos"));
         }
     }
 
@@ -83,13 +103,13 @@ public class Reports {
             loginPage.enterUserId("m3903");
             test.log(Status.PASS, "User ID entered successfully.");
 
-            loginPage.enterPassword("Nirav@789");
+            loginPage.enterPassword("Nirav@780");
             test.log(Status.PASS, "Password entered successfully.");
 
             loginPage.login();
             test.log(Status.PASS, "Login button clicked.");
 
-            page.waitForTimeout(2100);
+            page.waitForTimeout(2000);
             if (page.isVisible("#toast-container.toast-top-right.toast-container")) {
                 captureAndLogScreenshot();
                 throw new Exception("Login failed, notification displayed.");
@@ -108,6 +128,7 @@ public class Reports {
     public void navigateToDashboard() {
         test = extent.createTest("Navigate to IPO Dashboard");
 
+        
         IPOPage ipoPage = new IPOPage(page);
         
         try {
@@ -122,12 +143,16 @@ public class Reports {
     @Test(dependsOnMethods = {"navigateToDashboard"})
     public void placeBid() {
         test = extent.createTest("Place Bid");
-
+        
         IPOPage ipoPage = new IPOPage(page);
         
         try {
             ipoPage.placeBid("Target Company Name");
             test.log(Status.PASS, "Bid placed successfully.");
+            if (page.locator("h2:has-text('NO IPO TODAY !!')").isVisible()) {
+                System.out.println("NO IPO TODAY !!");
+                test.log(Status.INFO, "NO IPO TODAY !!");
+            }
         } catch (Exception e) {
             test.log(Status.FAIL, "Failed to place bid: " + e.getMessage());
             captureAndLogScreenshot();
@@ -162,8 +187,14 @@ public class Reports {
 
     @AfterTest
     public void tearDown() throws IOException {
-        if (page != null) page.close();
-        if (context != null) context.close();
+    	if (context != null) {
+    		context.tracing().stop(new Tracing.StopOptions()
+                    .setPath(Paths.get("./reports/Tracesteps.zip"))); // Stop tracing here
+    		context.close();
+        }
+    	if (page != null) page.close();
+    	
+       // if (context != null) context.close();
         if (browser != null) browser.close();
         if (playwright != null) playwright.close();
         extent.flush();
@@ -199,7 +230,7 @@ public class Reports {
             message.addRecipients(Message.RecipientType.TO, InternetAddress.parse(String.join(",", recipients)));
             message.setSubject("Test Report");
 
-            MimeMultipart multipart = new MimeMultipart("related");
+           MimeMultipart multipart = new MimeMultipart("related");
 
             // Email body part
             MimeBodyPart messageBodyPart = new MimeBodyPart();
@@ -209,7 +240,7 @@ public class Reports {
             StringBuilder content = new StringBuilder();
             content.append("<h3>Please find the attached test report.</h3>")
                    .append("<a href=\"file://").append(reportPath).append("\">View Report</a><br/>");
-
+            
             // Get the most recent screenshot path
             String recentScreenshotPath = getMostRecentScreenshotPath();
             if (recentScreenshotPath != null) {
@@ -232,7 +263,14 @@ public class Reports {
             MimeBodyPart attachmentBodyPart = new MimeBodyPart();
             attachmentBodyPart.attachFile(reportPath);
             multipart.addBodyPart(attachmentBodyPart);
-
+            
+            String recentVideoPath = getMostRecentVideoPath();
+            if (recentVideoPath != null) {
+                MimeBodyPart videoBodyPart = new MimeBodyPart();
+                videoBodyPart.attachFile(recentVideoPath);
+                multipart.addBodyPart(videoBodyPart);
+            }
+            
             message.setContent(multipart);
             Transport.send(message);
             System.out.println("Sent message successfully....");
@@ -248,6 +286,18 @@ public class Reports {
         if (dir.exists() && dir.isDirectory()) {
             Optional<File> recentFile = Arrays.stream(dir.listFiles())
                 .filter(file -> file.isFile() && file.getName().endsWith(".png"))
+                .max(Comparator.comparingLong(File::lastModified));
+            return recentFile.map(File::getAbsolutePath).orElse(null);
+        }
+        return null;
+    }
+    
+    private String getMostRecentVideoPath() {
+        String videosDir = "./reports/videos";
+        File dir = new File(videosDir);
+        if (dir.exists() && dir.isDirectory()) {
+            Optional<File> recentFile = Arrays.stream(dir.listFiles())
+                .filter(file -> file.isFile() && file.getName().endsWith(".webm")) // or .mp4 depending on the format
                 .max(Comparator.comparingLong(File::lastModified));
             return recentFile.map(File::getAbsolutePath).orElse(null);
         }
