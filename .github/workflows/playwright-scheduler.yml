@@ -1,38 +1,36 @@
-name: Run Playwright Tests on Schedule
-
+name: Playwright Tests
 on:
-  schedule:
-    - cron: '0 * * * *'  # This cron expression runs the job at 3:00 AM UTC every day
-  workflow_dispatch: # Allows manual triggering from the GitHub UI
-
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+    
 jobs:
-  run-playwright-tests:
+  test:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
-
     steps:
-      # Checkout the code from your GitHub repo
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    - name: List directory contents
+      run: ls -R
+    - uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/firstTest/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
 
-      # Set up Node.js environment
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+    - name: Change to Playwright directory
+      run: cd firstTest && mvn clean install
 
-      - name: Cache Node Modules
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+    - name: Ensure browsers are installed
+      run: cd firstTest && mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install --with-deps"
 
-      # Install dependencies
-      - name: Install Dependencies
-        run: |
-          npm install
-
-      # Run Playwright tests
-      - name: Run Playwright Tests
-        run: |
-          npx playwright install --with-deps  # Install necessary browser binaries
-          npm run test  # Assuming you have a test script set up in package.json
+    - name: Run Tests and Generate Extent Reports
+      run: cd firstTest && mvn test
