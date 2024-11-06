@@ -26,19 +26,10 @@ jobs:
           ${{ runner.os }}-maven-
 
     - name: Change to Playwright directory
-      run: cd firstTest && mvn -B install -DskipTests --no-transfer-progress
-      
+      run: cd firstTest && mvn clean install
+
     - name: Ensure browsers are installed
       run: cd firstTest && mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install --with-deps"
 
-    - name: Install Extent Reports dependency
-      run: cd firstTest && mvn install -DskipT  ests
-
-    - name: Generate Extent Reports
-      run: cd firstTest && mvn test > target/surefire-reports/extent-report.log 2>&1
-
-    - name: Upload Extent Report (Optional)
-      uses: actions/upload-artifact@v3
-      with:
-          path: target/surefire-reports/extent-report.html  # Change if your report location differs
-          name: Extent Report
+    - name: Run Tests and Generate Extent Reports
+      run: cd firstTest && mvn test
