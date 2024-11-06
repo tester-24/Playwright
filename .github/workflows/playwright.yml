@@ -21,15 +21,15 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/firstTest/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-maven-
 
     - name: Change to Playwright directory
-      run: cd Playwright && mvn -B install -DskipTests --no-transfer-progress
-
+      run: cd firstTest && mvn -B install -DskipTests --no-transfer-progress
+      
     - name: Ensure browsers are installed
-      run: cd Playwright && mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install --with-deps"
+      run: cd firstTest && mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install --with-deps"
 
     - name: Run tests
-      run: cd Playwright && mvn test
+      run: cd firstTest && mvn test
