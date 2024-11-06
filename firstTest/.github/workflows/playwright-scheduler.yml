@@ -1,1 +1,33 @@
+name: Run Playwright Tests on Schedule
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # This cron expression runs the job at 3:00 AM UTC every day
+  workflow_dispatch: # Allows manual triggering from the GitHub UI
+
+jobs:
+  run-playwright-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the code from your GitHub repo
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      # Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      # Install dependencies
+      - name: Install Dependencies
+        run: |
+          npm install
+
+      # Run Playwright tests
+      - name: Run Playwright Tests
+        run: |
+          npx playwright install --with-deps  # Install necessary browser binaries
+          npm run test  # Assuming you have a test script set up in package.json
 
